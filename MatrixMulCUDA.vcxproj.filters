@@ -18,5 +18,8 @@
     <CudaCompile Include="BaselineMul.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="cublas.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>
