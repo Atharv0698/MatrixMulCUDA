@@ -21,5 +21,8 @@
     <CudaCompile Include="cublas.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="Tiledapproach.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

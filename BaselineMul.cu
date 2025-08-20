@@ -2,9 +2,10 @@
 
 #include <iostream>
 #include<cuda_runtime.h>
+#include<chrono>
 using std::cout;
 
-__global__  void matrixMul(int* A, int* B, int* C, int N) {
+__global__ void matrixMul(float* A, float* B, float* C, int N) {
 
 	// Calculate the row and column index for the current thread
 	int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -12,18 +13,17 @@ __global__  void matrixMul(int* A, int* B, int* C, int N) {
 
 	// Check if the thread is within the bounds of the matrix
 	if (row < N && col < N) {
-		int sum = 0;
+		float sum = 0.0f;
 		for (int k = 0; k < N; k++) {
 			sum += A[row * N + k] * B[k * N + col];
 		}
 		C[row * N + col] = sum;
 	}
-
 }
 
-void verifyresult(int* h_A, int* h_B, int* h_C, int N) {
+void verifyresult(float* h_A, float* h_B, float* h_C, int N) {
 	for (int i = 0; i < N * N; i++) {
-		int expected = 0;
+		float expected = 0.0f;
 		for (int k = 0; k < N; k++) {
 			expected += h_A[i / N * N + k] * h_B[k * N + i % N];
 		}
@@ -39,33 +39,34 @@ void verifyresult(int* h_A, int* h_B, int* h_C, int N) {
 int main(){
 
 	// define memory on host
-	int* h_A, * h_B, * h_C;
+	float* h_A, * h_B, * h_C;
 
-	int N = 1<<10; // Size of the vectors
+	int N = 2048; // Size of the vectors
 
 	// define size of a matrix
-	size_t bytes = N * N * sizeof(int);
+	size_t bytes = N * N * sizeof(float);
 
 
 	// allocate memory on host
-	h_A = (int*)malloc(bytes);
-	h_B = (int*)malloc(bytes);
-	h_C = (int*)malloc(bytes);
+	h_A = (float*)malloc(bytes);
+	h_B = (float*)malloc(bytes);
+	h_C = (float*)malloc(bytes);
+
+
+	// Initialize matrices 
+	for (int i = 0; i < N * N; i++) {
+		h_A[i] = static_cast<float>(i % 100);
+		h_B[i] = static_cast<float>((i + 1) % 100);
+		h_C[i] = 0.0f; // Initialize C to zero
+	}
 
 	// Define pointers for device memory
-	int* d_A, * d_B, * d_C;
+	float* d_A, * d_B, * d_C;
 
 	// Allocate memory on device
 	cudaMalloc((void**)&d_A, bytes);
 	cudaMalloc((void**)&d_B, bytes);
 	cudaMalloc((void**)&d_C, bytes);
-
-	// Initialize host matrices
-	for (int i = 0; i < N * N; i++) {
-		h_A[i] = i % 10; // Example initialization
-		h_B[i] = (i + 1) % 10; // Example initialization
-		h_C[i] = 0; // Initialize result matrix to zero
-	}
 
 	// Copy matrices from host to device
 	cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice);
@@ -81,9 +82,21 @@ int main(){
 	dim3 block(threadsPerBlock, threadsPerBlock);
 	dim3 grid(blocksPerGrid, blocksPerGrid);
 
-	// Call kernel function
+	//Start timer
+	auto start = std::chrono::high_resolution_clock::now();
 	
+	// Call kernel function
 	matrixMul<<<grid, block>>>(d_A, d_B, d_C, N);
+	cudaDeviceSynchronize();
+
+	// Stop timer
+	auto end = std::chrono::high_resolution_clock::now();
+
+	// Calculate elapsed time
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+	cout << "Kernel execution time for baseline: " << duration.count() << " ms\n";
+
 
 	// Copy result matrix from device to host
 	cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost);
